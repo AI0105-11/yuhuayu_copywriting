@@ -1,6 +1,4 @@
-<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>余華宇上架文案工具</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
@@ -112,7 +110,7 @@ textarea{resize:vertical;line-height:1.75}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button{font:inherit;font-size:.88rem;border:0;background:transparent;color:var(--muted);padding:5px 12px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel);font-weight:700}
-pre.desc{white-space:pre-wrap;word-break:break-word;font-family:var(--f-body);font-size:.98rem;line-height:1.85;background:var(--field);border:1.5px solid var(--line);border-radius:10px;padding:14px;margin:0;max-height:520px;overflow:auto}
+textarea.desc{font-size:.98rem;line-height:1.85;padding:14px;min-height:420px;resize:vertical}
 .seo-chip{font-size:.98rem;border-radius:999px;padding:4px 6px 4px 13px;background:var(--sub);color:var(--sub-ink);border:1.5px solid var(--sub-line);display:inline-flex;align-items:center;gap:4px;font-weight:500}
 .seo-chip button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:1.05rem;padding:0 5px;line-height:1}
 .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -130,7 +128,6 @@ tr.row{cursor:pointer} tr.row:hover td{background:var(--field)}
 .edited{font-size:.75rem;color:var(--gold);border:1px solid var(--gold);border-radius:4px;padding:0 4px;margin-left:5px}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
-</head><body>
 
 <div class="wrap">
   <header class="hero">
@@ -240,8 +237,9 @@ tr.row{cursor:pointer} tr.row:hover td{background:var(--field)}
       </div>
 
       <div class="out">
-        <div class="out-h"><b>商品描述</b><span class="pill" id="d-count"></span><span class="sp"></span><button class="copy" data-copy="desc">複製描述</button></div>
-        <pre class="desc" id="o-desc"></pre>
+        <div class="out-h"><b>商品描述</b><span class="pill" id="d-count"></span><span class="sp"></span><button class="btn" id="d-regen">重新產生</button><button class="copy" data-copy="desc">複製描述</button></div>
+        <textarea class="desc" id="o-desc" rows="18" aria-label="商品描述" placeholder="填寫作品描述並選擇特色後，這裡會產生完整描述"></textarea>
+        <span class="tip" id="d-note"></span>
       </div>
     </div>
   </div>
@@ -321,7 +319,7 @@ function stateOf(id){return Object.assign(baseOf(id),STORE.edits[id]||{});}
 function edit(id,patch){STORE.edits[id]=Object.assign(STORE.edits[id]||{},patch); save();}
 function allIds(){return [...STORE.drafts];}
 function label(id){return "作品 "+(STORE.drafts.indexOf(id)+1);}
-function newDraft(from){const id="d"+Date.now()+Math.floor(Math.random()*1000); STORE.drafts.push(id); if(from&&STORE.edits[from]){const c=JSON.parse(JSON.stringify(STORE.edits[from])); delete c.summary; c.name=""; STORE.edits[id]=c;} save(); return id;}
+function newDraft(from){const id="d"+Date.now()+Math.floor(Math.random()*1000); STORE.drafts.push(id); if(from&&STORE.edits[from]){const c=JSON.parse(JSON.stringify(STORE.edits[from])); delete c.summary; delete c.descEdit; c.name=""; STORE.edits[id]=c;} save(); return id;}
 function ensureOne(){if(!STORE.drafts.length) newDraft();}
 
 // ---------- 產生 ----------
@@ -378,7 +376,7 @@ function makeDesc(s){
   const author=s.author==="余華宇老師"?DATA.author:"作者｜"+s.author+"\n（作者介紹待補）";
   return [a,b,DATA.brand,DATA.buy,...(gold?[DATA.gold]:[]),author].filter(Boolean).join("\n\n");
 }
-function outputs(s){return {title:makeTitle(s,STORE.fmt||"rec"),summary:s.summary??makeSummary(s),seo:makeSeo(s),desc:makeDesc(s),size:s.sizeCustom?s.sizeText.trim():sizeText(s.size)};}
+function outputs(s){return {title:makeTitle(s,STORE.fmt||"rec"),summary:s.summary??makeSummary(s),seo:makeSeo(s),desc:s.descEdit??makeDesc(s),size:s.sizeCustom?s.sizeText.trim():sizeText(s.size)};}
 
 // ---------- 畫面 ----------
 const $=id=>document.getElementById(id);
@@ -450,7 +448,8 @@ function render(){
   const sg=$("g-suggest"); sg.innerHTML="";
   [...new Set([...autoSeo(s),...SUGGEST])].filter(x=>!o.seo.includes(x)).forEach(x=>{const b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent="＋ "+x; b.onclick=()=>addSeo(x); sg.appendChild(b);});
   $("o-tagline").textContent=o.seo.join(",");
-  $("o-desc").textContent=o.desc||"填寫作品描述並選擇特色後，這裡會產生完整描述";
+  if(document.activeElement!==$("o-desc")) setv("o-desc",o.desc);
+  $("d-note").textContent=s.descEdit!=null?"已保留你修改的版本；之後改左邊的資料或標籤不會再更新這裡，按「重新產生」可改回自動版本":"可直接修改；修改後會保留你的版本";
   const dd=len(o.desc); pill($("d-count"),dd,150,10000,dd+" 字");
   STORE.cur=CUR; save();
 }
@@ -481,6 +480,8 @@ bind("in-feat","feat",true); bind("in-name","name"); bind("in-cap","cap"); bind(
 $("size-custom").onclick=()=>{const s=stateOf(CUR); const on=!s.sizeCustom; edit(CUR,on?{sizeCustom:true,sizeText:s.sizeText||sizeText(s.size)}:{sizeCustom:false}); render(); if(on) $("in-size-text").focus();};
 $("in-size-text").addEventListener("input",e=>{edit(CUR,{sizeText:e.target.value}); render();});
 $("o-summary").addEventListener("input",e=>{edit(CUR,{summary:e.target.value}); render();});
+$("o-desc").addEventListener("input",e=>{edit(CUR,{descEdit:e.target.value}); render();});
+$("d-regen").onclick=()=>{edit(CUR,{descEdit:null}); render(); toast("已重新產生商品描述");};
 $("s-regen").onclick=()=>{edit(CUR,{summary:null}); render(); toast("已重新產生摘要");};
 $("fmt-rec").onclick=()=>{STORE.fmt="rec"; save(); render();};
 $("fmt-old").onclick=()=>{STORE.fmt="old"; save(); render();};
